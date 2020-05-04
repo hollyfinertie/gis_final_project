@@ -1,0 +1,43 @@
+---
+title: "Final Project"
+author: "Holly Finertie"
+date: "5/4/2020"
+output: html_document
+---
+
+#### Step1: Import packages
+```{r}
+library(tidyverse)
+require(sf)
+require(rgdal)
+require(spdep)
+require(maptools)
+```
+
+#### Step 2: Import CA COVID-19 Cases by county
+
+Data downloaded from [NYTimes Github](https://github.com/nytimes/covid-19-data). The NYTimes had access to 54 counties in California and filtered the results to cases as of May 1, 2020. Cases are crude numbers. 
+```{r}
+covid = read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>% 
+  filter(date == "2020-05-01",
+         state == "California")
+
+```
+
+
+#### Step 3: Import CA Demographic, Household, and Commuting Data
+
+Data downloaded from [Census Data](https://data.census.gov/cedsci/) on demographics (age, sex),average household size, and percent of people who drive or use public transportation to get to work. 
+
+
+```{r}
+demo = read_csv("./california_county_demo.csv")
+household = read_csv("./california_county_household.csv")
+commute = read_csv("./california_county_commute.csv")
+
+non_covid_data = merge(demo, household, by = c("id", "county")) %>% 
+  merge(commute, by = c("id", "county")) %>% 
+  janitor::clean_names()
+
+```
+
