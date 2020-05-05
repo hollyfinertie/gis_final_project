@@ -3,7 +3,6 @@ title: "Final Project"
 author: "Holly Finertie"
 date: "5/4/2020"
 output:
-  pdf_document: default
   html_document: default
 ---
 
@@ -19,7 +18,6 @@ require(spdep)
 require(maptools)
 library(maps)
 library(leaflet)
-require(htmlwidgets)
 ```
 
 #### Step 2: Import CA COVID-19 Cases by county
@@ -129,8 +127,8 @@ ca_map = leaflet(ca_covid) %>%
                              color = 'black',
                              fillOpacity = 0.5,
                              popup = paste("County:", ca_covid$county, "<br>", 
-                                           "COVID-19 Cases per 100k:", ca_covid$cs__100, "<br>",
-                                           "COVID-19 Deaths per 100k:", ca_covid$dt__100, "<br>",
+                                           "COVID-19 Cases per 100k (5/1/2020):", ca_covid$cs__100, "<br>",
+                                           "COVID-19 Deaths per 100k (5/1/2020):", ca_covid$dt__100, "<br>",
                                            "Percent 65+:", ca_covid$prcn_65, "<br>",
                                            "Percent White:", ca_covid$prcnt_w, "<br>",
                                            "Average Household Size:", ca_covid$hshld_s, "<br>", 
@@ -138,6 +136,7 @@ ca_map = leaflet(ca_covid) %>%
                                         ))
 
 ca_map
+
 ```
 
 
