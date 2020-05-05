@@ -126,7 +126,7 @@ ca_map = leaflet(ca_covid) %>%
                              weight = 2,
                              color = 'black',
                              fillOpacity = 0.5,
-                             popup = paste("County:", ca_covid$county, "<br>", 
+                             popup = paste("<u>", ca_covid$county, "County</u><br>", 
                                            "COVID-19 Cases per 100k (5/1/2020):", ca_covid$cs__100, "<br>",
                                            "COVID-19 Deaths per 100k (5/1/2020):", ca_covid$dt__100, "<br>",
                                            "Percent 65+:", ca_covid$prcn_65, "<br>",
@@ -137,6 +137,8 @@ ca_map = leaflet(ca_covid) %>%
 
 ca_map
 
+require(htmlwidgets)
+saveWidget(ca_map, file = "CA_COVID-19.html")
 ```
 
 
