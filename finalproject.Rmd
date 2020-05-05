@@ -2,7 +2,9 @@
 title: "Final Project"
 author: "Holly Finertie"
 date: "5/4/2020"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ## COVID-19 in California by County and County Characterisitics
@@ -17,6 +19,7 @@ require(spdep)
 require(maptools)
 library(maps)
 library(leaflet)
+require(htmlwidgets)
 ```
 
 #### Step 2: Import CA COVID-19 Cases by county
