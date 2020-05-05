@@ -5,7 +5,10 @@ date: "5/4/2020"
 output: html_document
 ---
 
-#### Step1: Import packages
+## COVID-19 in California by County and County Characterisitics
+
+
+#### Step1: Load Packages
 ```{r}
 library(tidyverse)
 require(sf)
@@ -18,31 +21,30 @@ library(leaflet)
 
 #### Step 2: Import CA COVID-19 Cases by county
 
-Data downloaded from [NYTimes Github](https://github.com/nytimes/covid-19-data). The NYTimes had access to 54 counties in California and filtered the results to cases as of May 1, 2020. Cases are crude numbers. 
+Data on cumulative cases and deaths from COVID-19 by county was downloaded from [NYTimes Github](https://github.com/nytimes/covid-19-data). The results were filtered to include total cases and deaths in California counties as of 5/1/2020. Data were missing from 4 counties: Lassen, Modoc, Sierra, and Trinity. 
+
 ```{r}
-covid = read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>% 
+covid_nyt = read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>% 
   filter(date == "2020-05-01",
          state == "California") %>% 
   select(-fips, -state, -date) %>% 
   mutate(
     county = as.character(county)
   )
-
 ```
 
 
 #### Step 3: Import CA Demographic, Household, and Commuting Data
 
-Data downloaded from [Census Data](https://data.census.gov/cedsci/) on demographics (age, sex),average household size, and percent of people who drive or use public transportation to get to work. 
-
+Data on demographics, average household size, and commuter characteristics by California county were downloaded from [Census Data](https://data.census.gov/cedsci/). This data is from the 2013-2017 American Community Survey (ACS) 5-year estimates. 
 
 ```{r}
-demo = read_csv("./california_county_demo.csv")
-household = read_csv("./california_county_household.csv")
-commute = read_csv("./california_county_commute.csv")
+demo_acs = read_csv("./california_county_demo.csv")
+household_acs = read_csv("./california_county_household.csv")
+commute_acs = read_csv("./california_county_commute.csv")
 
-non_covid_data = merge(demo, household, by = c("id", "county")) %>% 
-  merge(commute, by = c("id", "county")) %>% 
+data_acs = merge(demo_acs, household_acs, by = c("id", "county")) %>% 
+  merge(commute_acs, by = c("id", "county")) %>% 
   janitor::clean_names() %>% 
   mutate(
     county = as.character(strsplit(county, " County, California"))
@@ -53,8 +55,10 @@ non_covid_data = merge(demo, household, by = c("id", "county")) %>%
 
 #### Step 4: Merge Data Files and create COVID per 100k stats
 
+Create final non-spatial data frame with all CA counties including COVID-19 and ACS data. Created variables to represent cases and deaths per 100,000 people. 
+
 ```{r}
-final_data = left_join(non_covid_data, covid, by = "county") %>% 
+covid_final_df = left_join(data_acs, covid_nyt, by = "county") %>% 
   mutate(
     cases_per_100k = round((cases/population)*100000, digits = 2), 
     deaths_per_100k = round((deaths/population)*100000, digits = 2)
@@ -62,10 +66,12 @@ final_data = left_join(non_covid_data, covid, by = "county") %>%
   mutate(
     county = str_to_lower(county))
 
-row.names(final_data) = final_data$county
+row.names(covid_final_df) = covid_final_df$county
 ```
 
 #### Step 5: Import CA Counties map
+
+Imported California map with county polygons from maps package. 
 
 ```{r}
 ca_county = map('county', 'california', fill = TRUE, col = palette())
@@ -82,8 +88,10 @@ plot(ca_map)
 
 #### Step 6: Create Shape File with all Data
 
+Created shapefile that merged non-spatial dataframe with CA spatial polygon file. Wrote and saved shapefile. 
+
 ```{r}
-ca_spatial_df = SpatialPolygonsDataFrame(ca_map, final_data)
+ca_spatial_df = SpatialPolygonsDataFrame(ca_map, covid_final_df)
 
 summary(ca_spatial_df)
 
@@ -101,12 +109,14 @@ ca_covid = readOGR(dsn = "data",
 
 ##### Step 7: Create Leaflet
 
-```{r}
-binpal = colorBin("YlOrRd", domain = ca_covid$cs__100, 5)
+Using Leaflet package, created an interactive map with COVID-19 information and county characteristics. 
 
-names(ca_covid)
+```{r}
+binpal = colorBin("Reds", domain = ca_covid$cs__100, 5)
 
 ca_covid$county = str_to_title(ca_covid$county)
+
+names(ca_covid)
 
 ca_map = leaflet(ca_covid) %>% 
   setView(-119.417,36.778, 5) %>%
@@ -119,7 +129,7 @@ ca_map = leaflet(ca_covid) %>%
                                            "COVID-19 Cases per 100k:", ca_covid$cs__100, "<br>",
                                            "COVID-19 Deaths per 100k:", ca_covid$dt__100, "<br>",
                                            "Percent 65+:", ca_covid$prcn_65, "<br>",
-                                           "Percent White:", ca_covid$prcnt_b, "<br>",
+                                           "Percent White:", ca_covid$prcnt_w, "<br>",
                                            "Average Household Size:", ca_covid$hshld_s, "<br>", 
                                            "Percent Commute Public Transportation", ca_covid$prcnt_p_, "<br>"
                                         ))
