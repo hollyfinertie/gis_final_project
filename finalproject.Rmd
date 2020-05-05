@@ -12,6 +12,8 @@ require(sf)
 require(rgdal)
 require(spdep)
 require(maptools)
+library(maps)
+library(leaflet)
 ```
 
 #### Step 2: Import CA COVID-19 Cases by county
@@ -20,7 +22,11 @@ Data downloaded from [NYTimes Github](https://github.com/nytimes/covid-19-data).
 ```{r}
 covid = read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>% 
   filter(date == "2020-05-01",
-         state == "California")
+         state == "California") %>% 
+  select(-fips, -state, -date) %>% 
+  mutate(
+    county = as.character(county)
+  )
 
 ```
 
@@ -37,7 +43,89 @@ commute = read_csv("./california_county_commute.csv")
 
 non_covid_data = merge(demo, household, by = c("id", "county")) %>% 
   merge(commute, by = c("id", "county")) %>% 
-  janitor::clean_names()
+  janitor::clean_names() %>% 
+  mutate(
+    county = as.character(strsplit(county, " County, California"))
+  ) %>% 
+  select(-id)
 
 ```
+
+#### Step 4: Merge Data Files and create COVID per 100k stats
+
+```{r}
+final_data = left_join(non_covid_data, covid, by = "county") %>% 
+  mutate(
+    cases_per_100k = round((cases/population)*100000, digits = 2), 
+    deaths_per_100k = round((deaths/population)*100000, digits = 2)
+  ) %>% 
+  mutate(
+    county = str_to_lower(county))
+
+row.names(final_data) = final_data$county
+```
+
+#### Step 5: Import CA Counties map
+
+```{r}
+ca_county = map('county', 'california', fill = TRUE, col = palette())
+
+county_names = strsplit(ca_county$names,",")
+
+map_id = as.character(tolower(sapply(county_names, function(x) x[2])))
+
+ca_map = map2SpatialPolygons(ca_county, IDs = map_id, 
+                                proj4string = CRS("+init=epsg:3310"))
+plot(ca_map)
+```
+
+
+#### Step 6: Create Shape File with all Data
+
+```{r}
+ca_spatial_df = SpatialPolygonsDataFrame(ca_map, final_data)
+
+summary(ca_spatial_df)
+
+writeOGR(ca_spatial_df, 
+         dsn = "data", 
+         layer = "CA_COVID",
+         overwrite_layer = TRUE,
+         driver = "ESRI Shapefile")
+
+ca_covid = readOGR(dsn = "data",
+                  layer = "CA_COVID") 
+
+```
+
+
+##### Step 7: Create Leaflet
+
+```{r}
+binpal = colorBin("YlOrRd", domain = ca_covid$cs__100, 5)
+
+names(ca_covid)
+
+ca_covid$county = str_to_title(ca_covid$county)
+
+ca_map = leaflet(ca_covid) %>% 
+  setView(-119.417,36.778, 5) %>%
+  addTiles() %>% 
+  addPolygons(fillColor = ~binpal(cs__100),
+                             weight = 2,
+                             color = 'black',
+                             fillOpacity = 0.5,
+                             popup = paste("County:", ca_covid$county, "<br>", 
+                                           "COVID-19 Cases per 100k:", ca_covid$cs__100, "<br>",
+                                           "COVID-19 Deaths per 100k:", ca_covid$dt__100, "<br>",
+                                           "Percent 65+:", ca_covid$prcn_65, "<br>",
+                                           "Percent White:", ca_covid$prcnt_b, "<br>",
+                                           "Average Household Size:", ca_covid$hshld_s, "<br>", 
+                                           "Percent Commute Public Transportation", ca_covid$prcnt_p_, "<br>"
+                                        ))
+
+ca_map
+```
+
+
 
